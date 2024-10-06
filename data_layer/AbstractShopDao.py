@@ -28,6 +28,21 @@ class AbstractShopDao(ABC, FileUtils):
             return result
         except psycopg2.OperationalError as e:
             return f"Operational Error: {e}"
+        
+    def read_one(self, sql_statement, sql_values):
+        try:
+            conn = self.db_connect()
+            cursor = conn.cursor()
+            
+            cursor.execute(sql_statement, sql_values)
+            result =  cursor.fetchall()
+            
+            cursor.close()
+            conn.close()
+            
+            return result
+        except psycopg2.OperationalError as e:
+            return e
            
         
     def write(self, sql_statement, sql_values):
