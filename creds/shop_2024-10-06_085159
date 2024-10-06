@@ -1,0 +1,764 @@
+--
+-- PostgreSQL database dump
+--
+
+-- Dumped from database version 16.4 (Ubuntu 16.4-0ubuntu0.24.04.2)
+-- Dumped by pg_dump version 16.4 (Ubuntu 16.4-0ubuntu0.24.04.2)
+
+SET statement_timeout = 0;
+SET lock_timeout = 0;
+SET idle_in_transaction_session_timeout = 0;
+SET client_encoding = 'UTF8';
+SET standard_conforming_strings = on;
+SELECT pg_catalog.set_config('search_path', '', false);
+SET check_function_bodies = false;
+SET xmloption = content;
+SET client_min_messages = warning;
+SET row_security = off;
+
+--
+-- Name: create_inventory(integer, integer); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.create_inventory(p_product_id integer, p_quantity integer) RETURNS boolean
+    LANGUAGE plpgsql
+    AS $$
+    begin
+        insert into 
+            product_inventory(product_id, quantity)
+                values(p_product_id, p_quantity);
+        
+        return true;
+    end;
+$$;
+
+
+ALTER FUNCTION public.create_inventory(p_product_id integer, p_quantity integer) OWNER TO postgres;
+
+--
+-- Name: delete_user_from_shop(integer); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.delete_user_from_shop(p_user_id integer) RETURNS boolean
+    LANGUAGE plpgsql
+    AS $$
+    begin
+        delete from pivot_shop_user
+        where user_id = p_user_id;
+
+        return true;
+
+    end;
+$$;
+
+
+ALTER FUNCTION public.delete_user_from_shop(p_user_id integer) OWNER TO postgres;
+
+--
+-- Name: set_shipping_information_default_to_false(integer); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.set_shipping_information_default_to_false(p_user_id integer) RETURNS boolean
+    LANGUAGE plpgsql
+    AS $$
+begin
+    update shipping_information
+    set default_value = false, updated_at = current_timestamp
+    where user_id = p_user_id;
+
+    return true;
+end;
+$$;
+
+
+ALTER FUNCTION public.set_shipping_information_default_to_false(p_user_id integer) OWNER TO postgres;
+
+SET default_tablespace = '';
+
+SET default_table_access_method = heap;
+
+--
+-- Name: categories; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.categories (
+    id integer NOT NULL,
+    category_name character varying(50) NOT NULL
+);
+
+
+ALTER TABLE public.categories OWNER TO postgres;
+
+--
+-- Name: categories_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.categories_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.categories_id_seq OWNER TO postgres;
+
+--
+-- Name: categories_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.categories_id_seq OWNED BY public.categories.id;
+
+
+--
+-- Name: order_items; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.order_items (
+    order_id integer NOT NULL,
+    product_id integer NOT NULL,
+    quantity integer NOT NULL,
+    price numeric(10,2) NOT NULL,
+    total_amount numeric(10,2) GENERATED ALWAYS AS (((quantity)::numeric * price)) STORED
+);
+
+
+ALTER TABLE public.order_items OWNER TO postgres;
+
+--
+-- Name: orders; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.orders (
+    id integer NOT NULL,
+    order_id character varying(50) NOT NULL,
+    user_id integer NOT NULL,
+    order_date timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    order_status character varying(20) DEFAULT 'pending'::character varying,
+    CONSTRAINT order_status_check CHECK (((order_status)::text = ANY ((ARRAY['pending'::character varying, 'awaiting payment'::character varying, 'processing'::character varying, 'shipped'::character varying, 'delivered'::character varying, 'completed'::character varying, 'returned'::character varying, 'refunded'::character varying, 'failed'::character varying, 'on hold'::character varying, 'partially shipped'::character varying])::text[])))
+);
+
+
+ALTER TABLE public.orders OWNER TO postgres;
+
+--
+-- Name: orders_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.orders_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.orders_id_seq OWNER TO postgres;
+
+--
+-- Name: orders_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.orders_id_seq OWNED BY public.orders.id;
+
+
+--
+-- Name: payment_method; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.payment_method (
+    id integer NOT NULL,
+    order_id integer NOT NULL,
+    payment_method_type character varying(15) NOT NULL,
+    payment_method_name character varying(30) DEFAULT 'cash'::character varying,
+    payment_amount numeric(10,2) NOT NULL,
+    payment_status character varying(20) DEFAULT 'pending'::character varying,
+    CONSTRAINT payment_method_check CHECK (((payment_method_type)::text = ANY ((ARRAY['cash on deliver'::character varying, 'digital wallets'::character varying, 'card'::character varying, 'pay later'::character varying])::text[]))),
+    CONSTRAINT payment_status_chec CHECK (((payment_status)::text = ANY ((ARRAY['pending'::character varying, 'completed'::character varying, 'failed'::character varying])::text[])))
+);
+
+
+ALTER TABLE public.payment_method OWNER TO postgres;
+
+--
+-- Name: payment_method_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.payment_method_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.payment_method_id_seq OWNER TO postgres;
+
+--
+-- Name: payment_method_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.payment_method_id_seq OWNED BY public.payment_method.id;
+
+
+--
+-- Name: pivot_shop_user; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.pivot_shop_user (
+    user_id integer NOT NULL,
+    shop_id integer NOT NULL
+);
+
+
+ALTER TABLE public.pivot_shop_user OWNER TO postgres;
+
+--
+-- Name: product; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.product (
+    id integer NOT NULL,
+    shop_id integer,
+    product_name character varying(50) NOT NULL,
+    product_long_desc text NOT NULL,
+    product_short_desc character varying(100) NOT NULL,
+    product_price numeric(10,2) NOT NULL,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    category_id integer NOT NULL,
+    shop_category_id integer NOT NULL
+);
+
+
+ALTER TABLE public.product OWNER TO postgres;
+
+--
+-- Name: product_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.product_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.product_id_seq OWNER TO postgres;
+
+--
+-- Name: product_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.product_id_seq OWNED BY public.product.id;
+
+
+--
+-- Name: shipping_information; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.shipping_information (
+    id integer NOT NULL,
+    user_id integer,
+    full_name character varying(50),
+    phone_number integer NOT NULL,
+    address_1 character varying(100) NOT NULL,
+    address_2 character varying(100) NOT NULL,
+    postal_code integer,
+    label character varying(4) NOT NULL,
+    default_value boolean DEFAULT false,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_timestamp timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT check_label CHECK (((label)::text = ANY ((ARRAY['home'::character varying, 'work'::character varying])::text[])))
+);
+
+
+ALTER TABLE public.shipping_information OWNER TO postgres;
+
+--
+-- Name: shipping_information_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.shipping_information_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.shipping_information_id_seq OWNER TO postgres;
+
+--
+-- Name: shipping_information_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.shipping_information_id_seq OWNED BY public.shipping_information.id;
+
+
+--
+-- Name: shop; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.shop (
+    id integer NOT NULL,
+    shop_name character varying(50) NOT NULL,
+    shop_rating double precision DEFAULT 0 NOT NULL,
+    verified boolean DEFAULT false,
+    description text NOT NULL,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    is_active boolean DEFAULT true
+);
+
+
+ALTER TABLE public.shop OWNER TO postgres;
+
+--
+-- Name: shop_categories; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.shop_categories (
+    id integer NOT NULL,
+    shop_id integer,
+    category_name character varying(50) NOT NULL,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP
+);
+
+
+ALTER TABLE public.shop_categories OWNER TO postgres;
+
+--
+-- Name: shop_categories_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.shop_categories_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.shop_categories_id_seq OWNER TO postgres;
+
+--
+-- Name: shop_categories_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.shop_categories_id_seq OWNED BY public.shop_categories.id;
+
+
+--
+-- Name: shop_contact_info; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.shop_contact_info (
+    id integer NOT NULL,
+    shop_id integer,
+    shop_contact_number integer NOT NULL,
+    shop_email character varying(50) NOT NULL,
+    shop_address_1 text NOT NULL,
+    shop_address_2 text NOT NULL,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT check_number CHECK ((length((shop_contact_number)::text) = 10))
+);
+
+
+ALTER TABLE public.shop_contact_info OWNER TO postgres;
+
+--
+-- Name: shop_contact_info_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.shop_contact_info_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.shop_contact_info_id_seq OWNER TO postgres;
+
+--
+-- Name: shop_contact_info_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.shop_contact_info_id_seq OWNED BY public.shop_contact_info.id;
+
+
+--
+-- Name: shop_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.shop_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.shop_id_seq OWNER TO postgres;
+
+--
+-- Name: shop_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.shop_id_seq OWNED BY public.shop.id;
+
+
+--
+-- Name: users; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.users (
+    id integer NOT NULL,
+    user_id character varying(30) NOT NULL,
+    user_name character varying(20) NOT NULL,
+    user_email character varying(50) NOT NULL,
+    user_contact_number bigint NOT NULL,
+    user_password text NOT NULL,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    is_seller boolean DEFAULT false,
+    is_active boolean DEFAULT true,
+    CONSTRAINT check_contact_number CHECK ((length((user_contact_number)::text) = 10))
+);
+
+
+ALTER TABLE public.users OWNER TO postgres;
+
+--
+-- Name: users_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.users_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.users_id_seq OWNER TO postgres;
+
+--
+-- Name: users_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.users_id_seq OWNED BY public.users.id;
+
+
+--
+-- Name: categories id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.categories ALTER COLUMN id SET DEFAULT nextval('public.categories_id_seq'::regclass);
+
+
+--
+-- Name: orders id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.orders ALTER COLUMN id SET DEFAULT nextval('public.orders_id_seq'::regclass);
+
+
+--
+-- Name: payment_method id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.payment_method ALTER COLUMN id SET DEFAULT nextval('public.payment_method_id_seq'::regclass);
+
+
+--
+-- Name: product id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product ALTER COLUMN id SET DEFAULT nextval('public.product_id_seq'::regclass);
+
+
+--
+-- Name: shipping_information id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.shipping_information ALTER COLUMN id SET DEFAULT nextval('public.shipping_information_id_seq'::regclass);
+
+
+--
+-- Name: shop id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.shop ALTER COLUMN id SET DEFAULT nextval('public.shop_id_seq'::regclass);
+
+
+--
+-- Name: shop_categories id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.shop_categories ALTER COLUMN id SET DEFAULT nextval('public.shop_categories_id_seq'::regclass);
+
+
+--
+-- Name: shop_contact_info id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.shop_contact_info ALTER COLUMN id SET DEFAULT nextval('public.shop_contact_info_id_seq'::regclass);
+
+
+--
+-- Name: users id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users ALTER COLUMN id SET DEFAULT nextval('public.users_id_seq'::regclass);
+
+
+--
+-- Name: categories categories_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.categories
+    ADD CONSTRAINT categories_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: order_items order_items_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.order_items
+    ADD CONSTRAINT order_items_pkey PRIMARY KEY (order_id, product_id);
+
+
+--
+-- Name: orders orders_order_id_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.orders
+    ADD CONSTRAINT orders_order_id_key UNIQUE (order_id);
+
+
+--
+-- Name: orders orders_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.orders
+    ADD CONSTRAINT orders_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: payment_method payment_method_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.payment_method
+    ADD CONSTRAINT payment_method_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: pivot_shop_user pivot_shop_user_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.pivot_shop_user
+    ADD CONSTRAINT pivot_shop_user_pkey PRIMARY KEY (user_id, shop_id);
+
+
+--
+-- Name: product product_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product
+    ADD CONSTRAINT product_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: shipping_information shipping_information_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.shipping_information
+    ADD CONSTRAINT shipping_information_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: shop_categories shop_categories_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.shop_categories
+    ADD CONSTRAINT shop_categories_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: shop_contact_info shop_contact_info_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.shop_contact_info
+    ADD CONSTRAINT shop_contact_info_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: shop_contact_info shop_contact_info_shop_email_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.shop_contact_info
+    ADD CONSTRAINT shop_contact_info_shop_email_key UNIQUE (shop_email);
+
+
+--
+-- Name: shop shop_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.shop
+    ADD CONSTRAINT shop_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: shop shop_shop_name_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.shop
+    ADD CONSTRAINT shop_shop_name_key UNIQUE (shop_name);
+
+
+--
+-- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: users users_user_contact_number_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_user_contact_number_key UNIQUE (user_contact_number);
+
+
+--
+-- Name: users users_user_email_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_user_email_key UNIQUE (user_email);
+
+
+--
+-- Name: users users_user_id_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_user_id_key UNIQUE (user_id);
+
+
+--
+-- Name: users users_user_name_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_user_name_key UNIQUE (user_name);
+
+
+--
+-- Name: orders order_fk; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.orders
+    ADD CONSTRAINT order_fk FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: payment_method order_fk; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.payment_method
+    ADD CONSTRAINT order_fk FOREIGN KEY (order_id) REFERENCES public.orders(id) ON DELETE CASCADE;
+
+
+--
+-- Name: order_items order_items_order_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.order_items
+    ADD CONSTRAINT order_items_order_id_fkey FOREIGN KEY (order_id) REFERENCES public.orders(id);
+
+
+--
+-- Name: order_items order_items_product_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.order_items
+    ADD CONSTRAINT order_items_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.product(id);
+
+
+--
+-- Name: pivot_shop_user pivot_shop_user_shop_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.pivot_shop_user
+    ADD CONSTRAINT pivot_shop_user_shop_id_fkey FOREIGN KEY (shop_id) REFERENCES public.shop(id) ON DELETE CASCADE;
+
+
+--
+-- Name: pivot_shop_user pivot_shop_user_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.pivot_shop_user
+    ADD CONSTRAINT pivot_shop_user_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: product product_category_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product
+    ADD CONSTRAINT product_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.categories(id);
+
+
+--
+-- Name: product product_shop_category_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product
+    ADD CONSTRAINT product_shop_category_id_fkey FOREIGN KEY (shop_category_id) REFERENCES public.shop_categories(id) ON DELETE CASCADE;
+
+
+--
+-- Name: shipping_information shipping_info_fk; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.shipping_information
+    ADD CONSTRAINT shipping_info_fk FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: shop_categories shop_category_fk; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.shop_categories
+    ADD CONSTRAINT shop_category_fk FOREIGN KEY (shop_id) REFERENCES public.shop(id) ON DELETE CASCADE;
+
+
+--
+-- Name: shop_contact_info shop_contact_fk; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.shop_contact_info
+    ADD CONSTRAINT shop_contact_fk FOREIGN KEY (shop_id) REFERENCES public.shop(id) ON DELETE CASCADE;
+
+
+--
+-- PostgreSQL database dump complete
+--
+
