@@ -10,9 +10,14 @@ class UserDao:
         sql_values = (user_id, user_name, user_email, user_contact, user_password)
         return self.__abstract_dao.write(sql_stmt, sql_values)
     
-    def find_account(self, username):
-        sql_stmt = "select * from users where user_name = %s"
-        sql_value = (username,)
+    def find_account_by_column(self, column, value):
+        sql_stmt = f"select * from users where {column} = %s"
+        sql_value = (value,)
+        return self.__abstract_dao.read_one(sql_stmt,sql_value)
+    
+    def find_account(self,value):
+        sql_stmt = f"select * from users where user_id = %s"
+        sql_value = (value,)
         return self.__abstract_dao.read_one(sql_stmt,sql_value)
     
     def deactivate_account(self, username):
