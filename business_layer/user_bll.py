@@ -11,13 +11,14 @@ class UserBLL:
         self.user_dao = UserDao()
         self.input_utils = InputUtils()
         
-    def register(self, user_name, user_password, user_email,user_contact) -> str:
-        return self.user_dao.register(self.get_user_id(),user_name, user_email, user_contact, self.hash_password(user_password))
+    def register(self,input_dict) -> str:
+        result = self.user_dao.register(self.get_user_id(),input_dict.get("user_name"), input_dict.get("user_email"), input_dict.get("user_contact"), self.hash_password(input_dict.get("user_password")))
+        return {"username": result[2],"email":result[3]}
     
     def get_user_id(self):
         current_time = datetime.now()
         formatted_time = current_time.strftime('%Y%m%d%S')
-        return f"USR_{formatted_time}{random.randitnt(1 ,99)}"
+        return f"USR_{formatted_time}{random.randint(1 ,99)}"
     
     def hash_password(self, password:str) -> str:
         return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
@@ -25,15 +26,9 @@ class UserBLL:
     def check_password(self, password:str, hashed_password:str) -> str:
         return bcrypt.checkpw(password.encode('utf-8'), hashed_password)
     
-    def find_account(self, username):
-        return self.user_dao.find_account(username)
+    def find_account(self, value, column="user_name"):
+        return self.user_dao.find_account(value, column)
 
-    def is_email_used(self, email):
-        return self.user_dao.find_account_by_column("user_email",str(email))
-    
-    def is_number_used(self, number):
-        return self.user_dao.find_account_by_column("user_contact", number)
-    
     def validate_inputs(self, input_dict):
         validate_arr = []
         if not self.input_utils.is_username(input_dict.get("user_name")):

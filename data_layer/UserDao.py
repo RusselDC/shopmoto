@@ -6,17 +6,12 @@ class UserDao:
         self.__abstract_dao = AbstractShopDao()
         
     def register(self,user_id:str, user_name:str, user_email:str,user_contact:str,user_password:str) -> str:
-        sql_stmt = "insert into users(user_id, user_name, user_email, user_contact, user_password) values (%s, %s, %s, %s, %s) returning *"
+        sql_stmt = "insert into users(user_id, user_name, user_email, user_contact_number, user_password) values (%s, %s, %s, %s, %s) returning *"
         sql_values = (user_id, user_name, user_email, user_contact, user_password)
         return self.__abstract_dao.write(sql_stmt, sql_values)
     
-    def find_account_by_column(self, column, value):
+    def find_account(self, value, column="user_name"):
         sql_stmt = f"select * from users where {column} = %s"
-        sql_value = (value,)
-        return self.__abstract_dao.read_one(sql_stmt,sql_value)
-    
-    def find_account(self,value):
-        sql_stmt = f"select * from users where user_id = %s"
         sql_value = (value,)
         return self.__abstract_dao.read_one(sql_stmt,sql_value)
     
